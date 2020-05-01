@@ -1,0 +1,356 @@
+#include "protheus.ch"
+#include "topconn.ch"
+
+#define CRLF chr(13) + chr(10)
+#define TITLE_MODAL "Exportador SQL"
+
+#define ICON_DEFAULT "br_cinza.png"
+#define ICON_SUCCESS "br_verde.png"
+#define ICON_ERROR "br_vermelho.png"
+
+/*/{Protheus.doc} exportsql
+Função realiza a extração de dados a partir do retorno de uma query SQL informada pelo
+usuário, podendo ser extraido em dois formatos CSV ou JSON.
+
+@author Gabriel Hegler Klok
+
+@type user function
+@since 30/04/2020
+@version 1.0
+/*/
+user function exportsql()
+    local aFormats as array
+
+    local cPatchSQL as character 
+    local cPatchSave as character 
+    local cFormatExport as character
+
+    local lPixel as logical 
+
+    local bFileSQL as block
+    local bDirSave as block
+    local bValidFileSQL as block
+    local bValidDirSave as block
+    local bExecute as block
+
+    local oDialog as object 
+    local oBtnSQL as object 
+    local oBtnSave as object
+    local oComboFormat as object
+    local oBtnExecute as object
+    local oTFont as object 
+    local oLabelSQL as object 
+    local oLabelSave as object
+    local oLabelFormat as object 
+    local oBitmapSQL as object 
+    local oBitmapSave as object
+    
+    aFormats := {}
+    aadd(aFormats, "1=CSV")
+    aadd(aFormats, "2=JSON")
+    
+    cPatchSQL := ""
+    cPatchSave := ""
+    cFormatExport := "1"
+
+    lPixel := .t.
+    
+    bFileSQL := {|| cPatchSQL := cgetfile("Arquivo SQL|*.sql", 'Selecione o arquivo SQL...', 1, plsmudsis('\'), .t., GETF_LOCALHARD, .t., .t.), eval(bValidFileSQL) }
+    bDirSave := {|| cPatchSave := cgetfile("Arquivo CSV|*.csv|Arquivo JSON|*.json", 'Selecione o diretorio para salvar o resultado...', 1, plsmudsis('\'), .t., GETF_LOCALHARD + GETF_RETDIRECTORY, .t., .t.), eval(bValidDirSave) }
+    bValidFileSQL := {|| iif(file(cPatchSQL), oBitmapSQL:setbmp(ICON_SUCCESS), oBitmapSQL:setbmp(ICON_ERROR)) }
+    bValidDirSave := {|| iif(existdir(cPatchSave) , oBitmapSave:setbmp(ICON_SUCCESS), oBitmapSave:setbmp(ICON_ERROR)) }
+    bExecute := {|| iif(execute(cPatchSQL, cPatchSave, val(cFormatExport), oBitmapSQL, oBitmapSave), oDialog:end(), nil) }
+    
+    oTFont := tfont():new('Arial',, -12,, .f.)
+
+    oDialog := msdialog():new(0, 0, 250, 585, "Exportador SQL",,,,,,,,, lPixel)
+
+    oLabelSQL := tsay():new(20, 20, {|| cPatchSQL }, oDialog,, oTFont,,,, lPixel,,, 180, 10)
+    oBtnSQL := tbutton():new(20, 220, "Arquivo SQL", oDialog, bFileSQL, 50, 10,, oTFont,, lPixel)
+    oBitmapSQL := tbitmap():new(22, 280, 10, 10, ICON_DEFAULT,, .t., oDialog,,,,,,,,, lPixel)
+
+    oLabelSave := tsay():new(40, 20, {|| cPatchSave }, oDialog,, oTFont,,,, lPixel,,, 180, 10)
+    oBtnSave := tbutton():new(40, 220, "Salvar em", oDialog, bDirSave, 50, 10,, oTFont,, lPixel)
+    oBitmapSave := tbitmap():new(42, 280, 10, 10, ICON_DEFAULT,, .t., oDialog,,,,,,,,, lPixel)
+
+    oLabelFormat := tsay():new(60, 20, {|| substr(aFormats[val(cFormatExport)], 3) }, oDialog,, oTFont,,,, lPixel,,, 180, 10)
+    oComboFormat := tcombobox():new(60, 220, {|u| iif(pcount() > 0, cFormatExport := u, cFormatExport)}, aFormats, 50, 10, oDialog,, {|| },,,, lPixel, oTFont)
+
+    oBtnExecute := tbutton():new(100, 220, "Executar", oDialog, bExecute, 50, 10,, oTFont,, lPixel)
+
+    oDialog:activate()
+
+    freeobj(oBtnSQL)
+    freeobj(oBtnSave)
+    freeobj(oComboFormat)
+    freeobj(oBtnExecute)
+    freeobj(oTFont)
+    freeobj(oLabelSQL)
+    freeobj(oLabelSave)
+    freeobj(oLabelFormat)
+    freeobj(oBitmapSQL)
+    freeobj(oBitmapSave)
+return 
+
+
+/*/{Protheus.doc} execute
+Função acionada ao clicar no botão 'Executar' após informar todos os parametros na tela inicial.
+
+@type static function
+@since 29/04/2020
+@version 1.0
+
+@param cPatchSQL, character, Caminho completo do arquivo SQL informado.
+@param cPatchSave, character, Caminho completo até o diretório informado para salvar a extração.
+@param nFormatExport, numeric, Formato escolhido para a exportação.
+@param oBitmapSQL, object, Objeto da classe TBitmap refente ao status do arquivo SQL informado.
+@param oBitmapSave, object, Objeto da classe TBitmap refente ao status do diretorio escolhido para salvar a extração.
+
+@return lResponse, logical, Status da execução.
+/*/
+static function execute(cPatchSQL as character, cPatchSave as character, nFormatExport as numeric, oBitmapSQL as object, oBitmapSave as object)
+    local lResponse as logical 
+    private cAliasSQL as character 
+
+    lResponse := .t.
+
+    if oBitmapSQL:cresname == ICON_SUCCESS .and. oBitmapSave:cresname == ICON_SUCCESS
+        cAliasSQL := getnextalias()
+
+        msgrun("Obtendo e executando SQL...", "", {|| lResponse := runSQL(cPatchSQL) })
+        if lResponse
+            exportData(cPatchSave, nFormatExport)
+        endif 
+        
+        (cAliasSQL)->(dbclosearea())
+    else 
+        msgstop("Parametros informados invalidos!", TITLE_MODAL)
+        lResponse := .f.
+    endif
+return lResponse
+
+
+/*/{Protheus.doc} runSQL
+Função responsável por executar a query extraida do arquivo SQL informado.
+
+@type static function
+@since 29/04/2020
+@version 1.0
+
+@param cPatchSQL, character, Caminho completo até o arquivo SQL informado.
+
+@return lResponse, logical, Retorna o status da execução da query.
+/*/
+static function runSQL(cPatchSQL as character)
+    local lResponse as logical 
+    local cQuery as character 
+
+    lResponse := .t.
+    cQuery := getStrSQL(cPatchSQL)
+
+    if validQuery(cQuery)
+        dbusearea(.t., 'TOPCONN', tcgenqry(,, changequery(cQuery)), cAliasSQL, .f., .t.)
+
+        if (cAliasSQL)->(eof())
+            msginfo("Nenhum dado encontrato.", "")
+            lResponse := .f.
+        endif 
+    else
+        msgstop("Query informada no arquivo '.SQL' contem instruções não permitidas.", TITLE_MODAL)
+        lResponse := .f. 
+    endif 
+return lResponse
+
+
+/*/{Protheus.doc} getStrSQL
+Função realiza a leitura do arquivo SQL informado.
+
+@type static function
+@since 29/04/2020
+@version 1.0
+
+@param cPatchSQL, character, Caminho completo até o arquivo SQL informado.
+
+@return cSQL, character, Query extraida do arquivo informado no @param 'cPatchSQL'.
+/*/
+static function getStrSQL(cPatchSQL as character)
+    local oFileSQL as object 
+    local cSQL as character 
+
+    cSQL := ""
+
+    oFileSQL := fwfilereader():new(cPatchSQL)
+    if oFileSQL:open()
+        while oFileSQL:hasline()
+            cSQL += oFileSQL:getline()
+        enddo 
+    endif
+
+    freeobj(oFileSQL) 
+return cSQL
+
+
+/*/{Protheus.doc} validQuery
+Função realiza uma validação simples para identificar posíveis comandos não 
+permitidos na instrução SQL informada no arquivo, uma vez que nossa rotina
+apenas permite consultas (SELECT).
+
+@type static function
+@since 30/04/2020
+@version 1.0
+
+@param cSQL, character, Instrução SQL extraida do arquivo informado.
+
+@return lResponse, logical, Status da validação.
+/*/
+static function validQuery(cSQL as character)
+    local lResponse as logical 
+
+    lResponse := .t. 
+
+    if "UPDATE" $ cSQL .or. "DELETE" $ cSQL .or. "TRUNCATE" $ cSQL .or. "CREATE" $ cSQL .or. "DROP" $ cSQL .or. "INSERT" $ cSQL
+        lResponse := .f.
+    endif 
+return lResponse
+
+
+/*/{Protheus.doc} exportData
+Função destinada a direcionar a gravação dos dados de acordo com o formato escolhido, chamando
+assim a função correspondente.
+
+@type static function
+@since 29/05/2020
+@version 1.0
+
+@param cPatchSave, character, Diretorio completo aonde o arquivo de extração será criado.
+@param nFormatExport, numeric, Formato de exportação escolhido.
+/*/
+static function exportData(cPatchSave as character, nFormatExport as numeric)
+    local cDateTime as character
+
+    cDateTime := dtos(ddatabase) + "_" + strtran(time(), ":", "")
+
+    do case 
+        case nFormatExport = 1
+            processa({|| sqlForCsv(cPatchSave + "extracao_CSV_" + cDateTime + ".csv") }, "Extraindo CSV...")
+        case nFormatExport = 2 
+            processa({|| sqlForJson(cPatchSave + "extracao_JSON_" + cDateTime + ".json") }, "Extraindo JSON...")
+    endcase 
+return 
+
+
+/*/{Protheus.doc} sqlForCsv
+Função realiza a gravação dos dados em um arquivo no formato CSV, usando ';' (ponto e vírgula) como separador.
+
+@type static function
+@since 29/04/2020
+@version 1.0
+
+@param cPatchSaveFull, character, Caminho completo do arquivo que será criado.
+/*/
+static function sqlForCsv(cPatchSaveFull as character)
+    local nHandle as numeric
+    local nRow as numeric
+    local nColumn as numeric 
+    local nCurrent as numeric
+    local nX as numeric 
+    local cLine as character 
+
+    nColumn := (cAliasSQL)->(fcount())
+    nCurrent := 1
+    cLine := ""
+    nHandle := fcreate(cPatchSaveFull,,, .t.)
+
+    if nHandle < 0
+        msgstop("Falha ao criar novo arquivo.", TITLE_MODAL)
+    else 
+        for nX := 1 to nColumn
+            cLine += (cAliasSQL)->(fieldname(nX)) + ";"
+        next nX 
+
+        fwrite(nHandle, cLine + CRLF)
+
+        COUNT TO nRow 
+        procregua(nRow)
+
+        (cAliasSQL)->(dbgotop())
+        while ! (cAliasSQL)->(eof())
+            cLine := ""
+            incproc("Extraindo registro " + cvaltochar(nCurrent) + " de " + cvaltochar(nRow) + "...")
+            nCurrent++
+
+            for nX := 1 to nColumn 
+                cLine += alltrim((cAliasSQL)->(fieldget(nX))) + ";"
+            next nX 
+
+            fwrite(nHandle, cLine + CRLF)
+            (cAliasSQL)->(dbskip())
+        enddo 
+
+        fclose(nHandle)
+
+        msginfo("Extraido com sucesso!", TITLE_MODAL)
+    endif 
+return 
+
+
+/*/{Protheus.doc} sqlForJson
+Função realiza a gravação dos dados em um arquivo no formato JSON.
+Optei por não usar a classe de manipulação de JSON padrão da TOTVS a 'JsonObject' uma vez 
+que não sei o tamanho to retorno da query e uma execução de query no protheus sempre
+resulta em campos no formato caracter, facilitando assim a manipulação direta.
+
+@type static function
+@since 29/04/2020
+@version 1.0
+
+@param cPatchSaveFull, character, Caminho completo do arquivo que será criado.
+/*/
+static function sqlForJson(cPatchSaveFull as character)
+    local nHandle as numeric
+    local nRow as numeric
+    local nColumn as numeric 
+    local nCurrent as numeric 
+    local nX as numeric 
+    local aColumn as array
+    local cData as character 
+
+    nColumn := (cAliasSQL)->(fcount())
+    nCurrent := 1
+    aColumn := {}
+    nHandle := fcreate(cPatchSaveFull,,, .t.)
+
+    if nHandle < 0
+        msgstop("Falha ao criar novo arquivo.", TITLE_MODAL)
+    else 
+        for nX := 1 to nColumn 
+            aadd(aColumn, (cAliasSQL)->(fieldname(nX)))
+        next nX 
+
+        fwrite(nHandle, "[")
+
+        COUNT TO nRow
+        procregua(nRow)
+
+        (cAliasSQL)->(dbgotop())
+        while ! (cAliasSQL)->(eof())
+            cData := "{"
+            incproc("Extraindo registro " + cvaltochar(nCurrent) + " de " + cvaltochar(nRow) + "...")
+            nCurrent++
+
+            for nX := 1 to nColumn 
+                cData += '"' + aColumn[nX] + '":"' + alltrim((cAliasSQL)->(fieldget(nX))) + '",'
+            next nX 
+
+            cData := left(cData, len(cData) - 1) + "}" + iif(nCurrent > nRow, "", ",")
+
+            fwrite(nHandle, cData)
+            (cAliasSQL)->(dbskip())
+        enddo 
+        
+        fwrite(nHandle, "]")
+        fclose(nHandle)
+
+        msginfo("Extraido com sucesso!", TITLE_MODAL)
+    endif 
+return 

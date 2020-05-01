@@ -26,31 +26,37 @@ A rotina realiza uma validação simples para evitar que alguns comandos sejam exe
 
 ## Exemplo de execução
 Fluxo de execução, ao acionar a rotina a tela abaixo é exibida.
+<br />
 ![](assets/tela-inicial-exportsql.png)
 
 <br />
 
 Ao clicar no botão 'Arquivo SQL' a seguinte tela é aberta, para selecionar o arquivo SQL desejado.
+<br />
 ![](assets/escolha-arquivo-sql-exportsql.png)
 
 <br />
 
 Após selecionar o arquivo SQL devemos escolher o diretório para salvar o arquivo que será extraido.
+<br />
 ![](assets/tela-escolha-diretorio-exportsql.png)
 
 <br />
 
 Após selecionar o arquivo SQL, definir o diretório para salvar a extração e o formato, podemos observar que ao lado direito dos botões o status ficou na cor verde, indicando que são válidos, caso fiquem vermelhos, devem ser revisados antes de clicar em 'Executar'.
+<br />
 ![](assets/tela-inicial-completa-exportsql.png)
 
 <br />
 
 Tudo certo vamos executar a extração acionando o botão 'Executar', feito isso observamos a tela abaixo. (Obs.: A quantidade de dados sendo extraidos vai variar de acordo com o retorno, na imagem abaixo é apenas um exemplo.)
+<br />
 ![](assets/tela-extraindo-exportsql.png)
 
 <br />
 
 Ao final da rotina, após a extração ser concluida a seguinte mensagem é exibida.
+<br />
 ![](assets/tela-final-sucesso-exportsql.png)
 
 <br />

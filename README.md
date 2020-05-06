@@ -1,6 +1,6 @@
-# export-csv-from-sql
+# tlpp-export-from-sql
 
-Exportar em CSV qualquer consulta SQL. Desenvolvida na linguagem TL++ (Linguagem proprietária da TOTVS)
+Exportar em CSV ou JSON qualquer consulta SQL. Desenvolvida na linguagem TL++ (Linguagem proprietária da TOTVS)
 
 <br />
 
